@@ -217,7 +217,7 @@ theorem movingSubgroup_compl_eq_fixingSubgroup (s : Set α) :
 theorem movingSubgroup_monotone : Monotone (movingSubgroup G (α := α)) :=
   Antitone.comp (fixingSubgroup_antitone G α) compl_anti
 
-theorem mem_movingSubgroup_iff_movedBy_subset (s : Set α) (g : G) :
+theorem mem_movingSubgroup_iff (s : Set α) (g : G) :
     g ∈ movingSubgroup G s ↔ movedBy α g ⊆ s := by
   rw [movingSubgroup, mem_fixingSubgroup_iff]
   constructor
@@ -228,26 +228,92 @@ theorem mem_movingSubgroup_iff_movedBy_subset (s : Set α) (g : G) :
     by_contra gx_ne_x
     exact x_notin_s (h gx_ne_x)
 
+@[simp]
+theorem movingSubgroup_inter (s t : Set α) :
+    movingSubgroup G s ⊓ movingSubgroup G t = movingSubgroup G (s ∩ t) := by
+  ext g
+  rw [Subgroup.mem_inf]
+  repeat rw [mem_movingSubgroup_iff]
+  rw [Set.subset_inter_iff]
+
+@[simp]
+theorem movingSubgroup_univ : movingSubgroup G (Set.univ : Set α) = ⊤ := by
+  ext g
+  rw [mem_movingSubgroup_iff]
+  exact ⟨fun _ => Subgroup.mem_top g, fun _ => Set.subset_univ _⟩
+
+theorem movingSubgroup_sInter (s : Set (Set α)) :
+    movingSubgroup G (⋂₀ s) = ⨅ t ∈ s, movingSubgroup G t := by
+  ext x
+  simp only [mem_movingSubgroup_iff, Set.subset_sInter_iff, Subgroup.mem_iInf]
+
+open Pointwise in
+@[simp]
+theorem movingSubgroup_smul (s : Set α) (g : G) :
+    movingSubgroup G (g • s) = MulAut.conj g • movingSubgroup G s := by
+  ext h
+  rw [mem_movingSubgroup_iff, Set.subset_set_smul_iff, smul_movedBy, inv_inv,
+    Subgroup.mem_pointwise_smul_iff_inv_smul_mem, mem_movingSubgroup_iff, MulAut.smul_def,
+    MulAut.conj_inv_apply]
+
+theorem orbit_movingSubgroup_subset {s : Set α}
+    {a : α} (a_in_s : a ∈ s) : MulAction.orbit (movingSubgroup G s) a ⊆ s :=
+  orbit_fixingSubgroup_compl_subset G α a_in_s
+
+section Faithful
+
+variable [FaithfulSMul G α]
+
+@[simp]
+theorem movingSubgroup_empty : movingSubgroup G (∅ : Set α) = ⊥ := by
+  ext x
+  rw [Subgroup.mem_bot, mem_movingSubgroup_iff, Set.subset_empty_iff]
+  exact movedBy_empty_iff_eq_one
+
 /--
 The moving subgroup of a set `s` is disjoint from the moving subgroup of `sᶜ`
 if the action is faithful.
 -/
-theorem movingSubgroup_compl_disjoint [FaithfulSMul G α] (s : Set α) :
+theorem movingSubgroup_compl_disjoint (s : Set α) :
     Disjoint (movingSubgroup G s) (movingSubgroup G sᶜ) := by
   rw [movingSubgroup_eq_fixingSubgroup_compl]
   rw [Function.comp_apply, Function.comp_apply]
   exact fixingSubgroup_compl_disjoint G sᶜ
 
-theorem not_mem_movingSubgroup_of_compl [FaithfulSMul G α] (s : Set α) {g : G} (g_ne_one : g ≠ 1)
+theorem not_mem_movingSubgroup_of_compl (s : Set α) {g : G} (g_ne_one : g ≠ 1)
     (g_in_subgroup : g ∈ movingSubgroup G sᶜ) : g ∉ movingSubgroup G s := by
-  by_contra h₁
+  intro h₁
   apply g_ne_one
   apply Subgroup.disjoint_def.mp (movingSubgroup_compl_disjoint G s) <;> assumption
 
-theorem commute_of_mem_movingSubgroup_of_disjoint_movedBy [FaithfulSMul G α] {g h : G} {s : Set α}
+theorem commute_of_mem_movingSubgroup_of_disjoint_movedBy {g h : G} {s : Set α}
     (g_in_subgroup : g ∈ movingSubgroup G s) (disjoint_movedBy : Disjoint s (movedBy α h)) :
     Commute g h := by
-  sorry
+  rw [mem_movingSubgroup_iff] at g_in_subgroup
+  have s_subset_fixedBy : s ⊆ fixedBy α h := by
+    rwa [← Set.disjoint_compl_right_iff_subset, ← movedBy_eq_compl_fixedBy]
+  have movedBy_subset_sc : movedBy α h ⊆ sᶜ := by
+    rwa [← Set.disjoint_compl_left_iff_subset, compl_compl]
+
+  refine eq_of_smul_eq_smul fun x: α => ?comm_eq
+
+  by_cases x ∈ s
+  case pos x_in_s =>
+    rw [mul_smul, mul_smul, s_subset_fixedBy x_in_s]
+    rw [← smul_mem_of_movedBy_subset g_in_subgroup] at x_in_s
+    rw [s_subset_fixedBy x_in_s]
+  case neg x_notin_s =>
+    rw [movedBy_eq_compl_fixedBy, Set.compl_subset_comm] at g_in_subgroup
+    rw [mul_smul, mul_smul, g_in_subgroup x_notin_s]
+
+    by_cases x ∈ fixedBy α h
+    case pos x_fixed =>
+      rw [x_fixed, g_in_subgroup x_notin_s]
+    case neg x_moved =>
+      rw [← smul_mem_fixedBy_iff_mem_fixedBy] at x_moved
+      rw [g_in_subgroup (movedBy_subset_sc x_moved)]
+
+end Faithful
 
 end MovingSubgroup
 
