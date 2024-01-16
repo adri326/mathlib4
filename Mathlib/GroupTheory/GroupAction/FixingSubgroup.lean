@@ -184,4 +184,71 @@ theorem orbit_fixingSubgroup_compl_subset {s : Set α}
   rw [mem_fixingSubgroup_compl_iff_movedBy_subset] at g_fixing
   rwa [← g_eq, smul_mem_of_movedBy_subset g_fixing]
 
+variable {α} in
+/--
+The fixing subgroup of a set `s` is disjoint from the fixing subgroup of `sᶜ`
+if the action is faithful.
+-/
+theorem fixingSubgroup_compl_disjoint [FaithfulSMul M α] (s : Set α) :
+    Disjoint (fixingSubgroup M s) (fixingSubgroup M sᶜ) := by
+  rw [Subgroup.disjoint_def]
+  intro x x_in_fs x_in_fsc
+  rw [mem_fixingSubgroup_iff_subset_fixedBy] at x_in_fs
+  rw [mem_fixingSubgroup_iff_subset_fixedBy] at x_in_fsc
+  rw [← fixedBy_univ_iff_eq_one (α := α), eq_comm]
+  apply subset_antisymm _ (Set.subset_univ _)
+  rw [← Set.union_compl_self s]
+  apply Set.union_subset <;> assumption
+
+section MovingSubgroup
+
+variable (G : Type*) {α : Type*} [Group G] [MulAction G α]
+
+def movingSubgroup (s : Set α) := fixingSubgroup G sᶜ
+
+theorem movingSubgroup_eq_fixingSubgroup_compl :
+    movingSubgroup G (α := α) = fixingSubgroup G (α := α) ∘ compl := rfl
+
+@[simp]
+theorem movingSubgroup_compl_eq_fixingSubgroup (s : Set α) :
+    movingSubgroup G sᶜ = fixingSubgroup G s := by
+  rw [movingSubgroup, compl_compl]
+
+theorem movingSubgroup_monotone : Monotone (movingSubgroup G (α := α)) :=
+  Antitone.comp (fixingSubgroup_antitone G α) compl_anti
+
+theorem mem_movingSubgroup_iff_movedBy_subset (s : Set α) (g : G) :
+    g ∈ movingSubgroup G s ↔ movedBy α g ⊆ s := by
+  rw [movingSubgroup, mem_fixingSubgroup_iff]
+  constructor
+  · intro h x gx_ne_x
+    by_contra x_notin_s
+    exact gx_ne_x (h x x_notin_s)
+  · intro h x x_notin_s
+    by_contra gx_ne_x
+    exact x_notin_s (h gx_ne_x)
+
+/--
+The moving subgroup of a set `s` is disjoint from the moving subgroup of `sᶜ`
+if the action is faithful.
+-/
+theorem movingSubgroup_compl_disjoint [FaithfulSMul G α] (s : Set α) :
+    Disjoint (movingSubgroup G s) (movingSubgroup G sᶜ) := by
+  rw [movingSubgroup_eq_fixingSubgroup_compl]
+  rw [Function.comp_apply, Function.comp_apply]
+  exact fixingSubgroup_compl_disjoint G sᶜ
+
+theorem not_mem_movingSubgroup_of_compl [FaithfulSMul G α] (s : Set α) {g : G} (g_ne_one : g ≠ 1)
+    (g_in_subgroup : g ∈ movingSubgroup G sᶜ) : g ∉ movingSubgroup G s := by
+  by_contra h₁
+  apply g_ne_one
+  apply Subgroup.disjoint_def.mp (movingSubgroup_compl_disjoint G s) <;> assumption
+
+theorem commute_of_mem_movingSubgroup_of_disjoint_movedBy [FaithfulSMul G α] {g h : G} {s : Set α}
+    (g_in_subgroup : g ∈ movingSubgroup G s) (disjoint_movedBy : Disjoint s (movedBy α h)) :
+    Commute g h := by
+  sorry
+
+end MovingSubgroup
+
 end Group
